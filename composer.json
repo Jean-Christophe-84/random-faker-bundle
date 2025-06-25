@@ -1,0 +1,36 @@
+{
+  "name": "Jean-Christophe-84/random-faker-bundle",
+  "type": "symfony-bundle",
+  "description": "Can add automatically fixtures for project",
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "Jean-Christophe SANNA"
+    }
+  ],
+  "require": {
+    "php": "^8.0"
+  },
+  "require-dev": {
+    "doctrine/orm": "^2.0",
+    "fakerphp/faker": "^1.24",
+    "phpoffice/phpspreadsheet": "^4.2",
+    "symfony/console": "^5.0|^6.0",
+    "symfony/dependency-injection": "^5.0|^6.0",
+    "symfony/finder": "^5.0|^6.0",
+    "symfony/framework-bundle": "^5.0|^6.0",
+    "symfony/runtime": "^5.0|^6.0",
+    "symfony/validator": "^5.0|^6.0",
+    "doctrine/annotations": "^2.0"
+  },
+  "extra": {
+    "symfony": {
+      "allow-contrib": true
+    }
+  },
+  "config": {
+    "allow-plugins": {
+      "symfony/runtime": true
+    }
+  }
+}

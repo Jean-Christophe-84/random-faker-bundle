@@ -1,0 +1,13 @@
+<?php
+
+namespace RandomFakerBundle\Attribute\Formatters\TextAndParagraphs;
+
+use Attribute;
+
+#[Attribute(Attribute::TARGET_CLASS | Attribute::TARGET_PROPERTY)]
+readonly class FakerWords
+{
+    public function __construct(public int $nb = 3, public bool $asText = false)
+    {
+    }
+}
