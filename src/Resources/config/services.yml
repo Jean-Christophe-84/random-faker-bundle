@@ -1,0 +1,12 @@
+services:
+  _defaults:
+    autowire: true
+    autoconfigure: true
+
+  RandomFakerBundle\Command\RandomFixturesAnnotationsCommand:
+    autowire: true
+    tags: [ 'console.command' ]
+
+  RandomFakerBundle\Helper\FixtureHelper:
+    autowire: true
+    autoconfigure: true
