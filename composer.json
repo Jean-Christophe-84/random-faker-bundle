@@ -12,7 +12,7 @@
     "php": "^7.0|^8.0"
   },
   "require-dev": {
-    "doctrine/orm": "^2.20.1",
+    "doctrine/orm": "^2.0",
     "fakerphp/faker": "^1.24",
     "phpoffice/phpspreadsheet": "^4.2",
     "symfony/console": "^3.0|^4.0",
