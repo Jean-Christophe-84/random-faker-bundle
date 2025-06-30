@@ -30,27 +30,28 @@ composer require jean-christophe-84/random-faker-bundle
 Active le bundle dans `config/bundles.php` :
 
 # Version Symfony 3
-// app/AppKernel.php
-public function registerBundles()
-{
-    $bundles = [
-		// ...
-	];
 
-    if (in_array($this->getEnvironment(), ['dev', 'test'], true)) {
-        // ...
-        $bundles[] = new RandomFakerBundle\RandomFakerBundle();
-    }
-    
-    return $bundles;
-}
+	// app/AppKernel.php
+	public function registerBundles() {
+		$bundles = [
+			// ...
+		];
+	
+		if (in_array($this->getEnvironment(), ['dev', 'test'], true)) {
+			// ...
+			$bundles[] = new RandomFakerBundle\RandomFakerBundle();
+		}
+		
+		return $bundles;
+	}
 
 # Version Symfony 4
-// config/bundles.php
-return [
-	// ...
-    RandomFakerBundle\RandomFakerBundle::class => ['dev' => true, 'test' => true],
-];
+
+	// config/bundles.php
+	return [
+		// ...
+		RandomFakerBundle\RandomFakerBundle::class => ['dev' => true, 'test' => true],
+	];
 
 
 ## Configuration
@@ -62,66 +63,74 @@ Tu peux toutefois personnaliser certains comportements via les paramètres Symfo
 
 ### 1. Ajoute une annotation à ton entité
 
-// src/Entity/Product.php
-
-// ...
-use RandomFakerBundle\Annotation\FakerNumber;
-use RandomFakerBundle\Annotation\FakerOrder;
-use RandomFakerBundle\Annotation\AvailableFormatters\Person\FakerName;
-
-// ...
-
-/**
- * ...
- * @FakerNumber(number=10)
- * @FakerOrder(order=10)
- * ...
-*/
-class Product
-{
+	// src/Entity/Product.php
+	
+	// ...
+	use RandomFakerBundle\Annotation\FakerNumber;
+	use RandomFakerBundle\Annotation\FakerOrder;
+	use RandomFakerBundle\Annotation\AvailableFormatters\Person\FakerName;
+	
 	// ...
 	
 	/**
-     * ...
-     * @FakerName
-     */
-    public $name;
-    
-    // ...
-}
+	 * ...
+	   * @FakerNumber(number=10)
+	   * @FakerOrder(order=10)
+	   * ...
+	*/
+	class Product
+	{
+		  // ...
+		
+		  /**
+		   * ...
+		   * @FakerName
+		   */
+		  public $name;
+		
+		  // ...
+	}
 
-FakerNumber => indique le nombre de lignes que l'on souhaite générer
-FakerOrder => indique l'ordre d'appel (comme la fonction "getOrder" dans les fixtures)
+FakerNumber : indique le nombre de lignes que l'on souhaite générer
+<br/>
+FakerOrder : indique l'ordre d'appel (comme la fonction "getOrder" dans les fixtures)
 
-=> Dans le cas où deux enités ont le même ordre, cela prendra les entités par ordre alphabétique
+=> Dans le cas où deux entités ont le même ordre, cela prendra les entités par ordre alphabétique
+<br/>
 => Du moment que ces deux fonctions sont ajoutées à la classe, l'entité sera prise en compte
 
 Faker... :
-	- Toutes les fonctions du bundle "fakerphp/faker" sont disponibles, il suffit de mettre "Faker" + "NomdeLaMethode" avec la première lettre en majusucle (FakerNumberBetween, FakerDateTime, etc...)
-	- Vous pouvez personnaliser chaque fonction comme celle du bundle en ajoutant des paramètres => FakerName(gender="female")
+- Toutes les fonctions du bundle "fakerphp/faker" sont disponibles, il suffit de mettre "Faker" + "NomdeLaMethode" avec la première lettre en majuscule (FakerNumberBetween, FakerDateTime, etc...)
+- Vous pouvez personnaliser chaque fonction comme celle du bundle en ajoutant des paramètres => FakerName(gender="female")
    
 Deux autres fonctions ont été ajoutées :
-	- FakerIgnore(ignore="true") => permet d'ignorer un champ. Il est possible de mettre le paramètre "ignore" à "false", mais cela n'aura aucune conséquence car cela permettra de ne pas ignorer le champ (fonction par défaut)
-	- FakerNullable(nullable="false") => particulièrement utile si un champ est nullable="true" mais que vous souhaitez absolument remplir ce champ à chaque fois. Dans le cas ou vous mettez la paramètre "nullable" à true, cela va mettre le champ "null" à chaque fois => équivalent à FakerIgnore(ignore="true") si le champ est nullable
+- FakerIgnore(ignore="true") => permet d'ignorer un champ. Il est possible de mettre le paramètre "ignore" à "false", mais cela n'aura aucune conséquence car cela permettra de ne pas ignorer le champ (fonction par défaut)
+- FakerNullable(nullable="false") => particulièrement utile si un champ est nullable="true" mais que vous souhaitez absolument remplir ce champ à chaque fois. Dans le cas ou vous mettez la paramètre "nullable" à true, cela va mettre le champ "null" à chaque fois => équivalent à FakerIgnore(ignore="true") si le champ est nullable
 	
-Dans le cas où vous ne mettre rien sur le champ, il sera automatiquement rempli en fonction des paramètres du champ (voir la fonction "getRandomFaker" dans le helper)
+Dans le cas où vous ne mettez rien sur le champ, il sera automatiquement rempli en fonction des paramètres du champ (voir la fonction "getRandomFaker()" dans le helper)
 
 Pour le champ généralement appelé "id", s'il possède l'annotation "@ORM\GeneratedValue(strategy="AUTO")", cela générera automatiquement un id. Il n'est donc pas possible de rajouter une annotation Faker.
 
-Attention : les champs "unique" ne sont pas gérés
+<span style="color: red; font-size: 16px; font-weight: bold;">Attention : les champs "unique" ne sont pas gérés</span>
+<br/>
 => Si tel est le cas, je vous conseille d'ignorer ce champ et de le remplir ensuite (via une autre commande par exemple)
 
-Attention également aux associations : seuls les champs "ManyToOne" sont traités. Il est donc impératif d'avoir créer l'entité lié avant l'entité courante
-=> Par exemple, vous avez une entité "Produit" dans laquelle se trouve un champ "Fournisseur" en "ManyToOne". L'ordre mis dans l'entité "Fournisseur" doit être inférieur à celui dans l'entité "Produit"
-
-Pour les relations "OneToOne" et "ManyToMany", il est conseillé de les traiter à part
+<span style="color: red; font-size: 16px; font-weight: bold;">Attention également aux associations</span>
+<br/>
+Seuls les champs "ManyToOne" sont traités.
+<br/>
+Il est donc impératif d'avoir créer l'entité lié avant l'entité courante
+<br/>
+=> Par exemple, si vous avez une entité "Produit" dans laquelle se trouve un champ "Fournisseur" en "ManyToOne", l'ordre mis dans l'entité "Fournisseur" doit être inférieur à celui dans l'entité "Produit"
+<br/>
+Pour les relations "OneToOne" et "ManyToMany", il est conseillé de les traiter à part.
 
 
 ### 2. Génère les fixtures
 
-Utilise la commande Symfony fournie par le bundle pour générer et charger les fixtures :
+Utilise la commande Symfony fournie par le bundle pour générer et charger les fixtures :
 
-php bin/console annotations:fixtures:random
+	php bin/console annotations:fixtures:random
 
 
 **Contributions bienvenues !**  
