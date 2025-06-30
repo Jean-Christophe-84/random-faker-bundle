@@ -24,7 +24,7 @@ Ce bundle permet de simplifier et d’automatiser la création de fixtures pour 
 
 Ajoute le bundle à ton projet avec Composer :
 
-	composer require jean-christophe-84/random-faker-bundle "5.0.0"
+	composer require jean-christophe-84/random-faker-bundle
 
 Active le bundle dans `config/bundles.php` :
 
