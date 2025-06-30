@@ -24,12 +24,11 @@ Ce bundle permet de simplifier et d’automatiser la création de fixtures pour 
 
 Ajoute le bundle à ton projet avec Composer :
 
-composer require jean-christophe-84/random-faker-bundle
-
+	composer require jean-christophe-84/random-faker-bundle
 
 Active le bundle dans `config/bundles.php` :
 
-# Version Symfony 3
+### Version Symfony 3
 
 	// app/AppKernel.php
 	public function registerBundles() {
@@ -45,7 +44,7 @@ Active le bundle dans `config/bundles.php` :
 		return $bundles;
 	}
 
-# Version Symfony 4
+### Version Symfony 4
 
 	// config/bundles.php
 	return [
