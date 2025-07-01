@@ -1,6 +1,6 @@
 <?php
 
-namespace RandomFakerBundleOld\RandomFakerBundle;
+namespace RandomFakerBundle\RandomFakerBundle;
 
 use Symfony\Component\HttpKernel\Bundle\Bundle;
 
