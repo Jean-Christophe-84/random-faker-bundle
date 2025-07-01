@@ -3,14 +3,14 @@
   "type": "symfony-bundle",
   "description": "Can add automatically fixtures for project",
   "license": "MIT",
-  "version": "5.0.0.3",
+  "version": "5.0.0",
   "authors": [
     {
       "name": "Jean-Christophe SANNA"
     }
   ],
   "require": {
-    "jean-christophe-84/random-faker-bundle": "5.0.0.3",
+    "jean-christophe-84/random-faker-bundle": "5.0.0",
     "php": "^8.0"
   },
   "require-dev": {

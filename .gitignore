@@ -1,4 +1,5 @@
 .sass-cache*
 vendor
+.git
 .idea
 composer.lock
