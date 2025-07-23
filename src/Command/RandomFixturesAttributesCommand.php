@@ -53,7 +53,7 @@ class RandomFixturesAttributesCommand extends Command
 
             foreach ($meta->getAssociationMappings() as $fieldName => $mapping) {
                 $entities[$meta->getReflectionClass()->getShortName()]['associations'][$fieldName] = [
-                    'annotations'  => $this->fixtureHelper->getAttributesForEntity($meta->getName(), $fieldName),
+                    'attributes'   => $this->fixtureHelper->getAttributesForEntity($meta->getName(), $fieldName),
                     'nullable'     => $this->fixtureHelper->isAssociationNullableAttribute($meta->getName(), $fieldName),
                     'type'         => $this->fixtureHelper->getTypeAssociation($mapping['type']),
                     'targetEntity' => $mapping['targetEntity']

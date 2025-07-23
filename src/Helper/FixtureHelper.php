@@ -171,13 +171,33 @@ readonly class FixtureHelper
                 }
             case 'string':
                 if ($length) {
-                    return $faker->text($length);
+                    if ($length < 5) {
+                        $return = '';
+                        
+                        for ($i = 1; $i <= $length; $i++) {
+                            $return .= $faker->randomLetter();
+                        }
+                        
+                        return $return;
+                    } else {
+                        return $faker->text($length);
+                    }
                 } else {
                     return $faker->word();
                 }
             case 'text':
                 if ($length) {
-                    return $faker->text($length);
+                    if ($length < 5) {
+                        $return = '';
+                        
+                        for ($i = 1; $i <= $length; $i++) {
+                            $return .= $faker->randomLetter();
+                        }
+                        
+                        return $return;
+                    } else {
+                        return $faker->text($length);
+                    }
                 } else {
                     return $faker->text();
                 }
