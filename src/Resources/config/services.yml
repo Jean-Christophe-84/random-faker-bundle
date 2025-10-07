@@ -3,11 +3,7 @@ services:
     autowire: true
     autoconfigure: true
 
-  RandomFakerBundle\Command\RandomFixturesAnnotationsCommand:
-    autowire: true
-    tags: [ 'console.command' ]
-
-  RandomFakerBundle\Command\RandomFixturesAttributesCommand:
+  RandomFakerBundle\Command\RandomFixturesCommand:
     autowire: true
     tags: [ 'console.command' ]
 

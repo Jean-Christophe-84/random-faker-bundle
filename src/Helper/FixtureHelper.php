@@ -5,21 +5,22 @@ namespace RandomFakerBundle\Helper;
 use Doctrine\Common\Annotations\AnnotationReader;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Mapping as ORM;
-use Doctrine\ORM\Mapping\ClassMetadata;
-use Doctrine\ORM\Mapping\MappingException;
+use Doctrine\ORM\Mapping\ClassMetadataInfo;
 use Exception;
 use Faker\Factory;
-use InvalidArgumentException;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Reader\Csv;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use ReflectionAttribute;
 use ReflectionClass;
 use ReflectionException;
+use ReflectionMethod;
 use ReflectionProperty;
 use Symfony\Component\Console\Helper\ProgressBar;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\DependencyInjection\ParameterBag\ParameterBagInterface;
 use Symfony\Component\Finder\Finder;
+use Symfony\Component\Yaml\Yaml;
 
 readonly class FixtureHelper
 {
@@ -32,118 +33,59 @@ readonly class FixtureHelper
         return strtolower(preg_replace('/(?<=[a-z0-9])([A-Z])/', '_$1', $input));
     }
 
-    #[Throws(ReflectionException::class)]
-    public function getAnnotationParameter(string $className, string $annotationClass, string $key): mixed
+    public function getFields(ReflectionClass $reflectionClass, string $fieldName): array
     {
-        $reflectionClass = new ReflectionClass($className);
-        $reader          = new AnnotationReader();
+        $yamlFile = $this->getYamlFile($reflectionClass);
 
-        $annotations = $reader->getClassAnnotations($reflectionClass);
+        $data = Yaml::parseFile($yamlFile['newFilePath'], flags: Yaml::PARSE_DATETIME);
 
-        foreach ($annotations as $annotation) {
-            if ($annotation instanceof $annotationClass) {
-                return property_exists($annotation, $key) ? $annotation->$key : null;
+        $dataFields = $data['fields'] ?? [];
+        $fields     = [];
+
+        if ($this->hasOrmAnnotations($reflectionClass)) {
+            $type = 'Annotation';
+        } elseif ($this->hasOrmAttributes($reflectionClass)) {
+            $type = 'Attribute';
+        } else {
+            $type = null;
+        }
+
+        if (array_key_exists($fieldName, $dataFields) && $type) {
+            foreach ($dataFields[$fieldName] as $key => $value) {
+                $fields[] = [
+                    'name'       => $this->getNameFaker($key, $type),
+                    'nameFaker'  => $key,
+                    'parameters' => $value['parameters'] ?? []
+                ];
             }
         }
 
-        return null;
+        return $fields;
     }
 
-    #[Throws(ReflectionException::class)]
-    public function getAnnotationsForEntity(string $entityClass, string $fieldName): array
-    {
-        $reflectionClass = new ReflectionClass($entityClass);
-        $reader          = new AnnotationReader();
-        $annotations     = [];
-        $allClasses      = $this->getClassesInDirectory(__DIR__ . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . 'Annotation');
-
-        foreach ($reflectionClass->getProperties() as $property) {
-            if ($property->getName() === $fieldName) {
-                foreach ($reader->getPropertyAnnotations($property) as $annotation) {
-                    $reflection = new ReflectionClass($annotation);
-
-                    if (in_array(get_class($annotation), $allClasses, true)) {
-                        $annotations[] = [
-                            'name'       => get_class($annotation),
-                            'nameFaker'  => $this->getNameForFaker($reflection->getShortName()),
-                            'parameters' => get_object_vars($annotation)
-                        ];
-                    }
-                }
-            }
-        }
-
-        return $annotations;
-    }
-
-    #[Throws(ReflectionException::class)]
-    public function getAttributeParameter(string $className, string $attributeName, string $key): ?int
-    {
-        $reflectionClass = new ReflectionClass($className);
-        $attributes      = $reflectionClass->getAttributes($attributeName);
-
-        return isset($attributes[0]) && isset($attributes[0]->getArguments()[$key]) ? $attributes[0]->getArguments()[$key] : null;
-    }
-
-    #[Throws(ReflectionException::class)]
-    public function getAttributesForEntity(string $entityClass, string $fieldName): array
-    {
-        $reflectionClass = new ReflectionClass($entityClass);
-        $attributes      = [];
-        $allClasses      = $this->getClassesInDirectory(__DIR__ . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . 'Attribute');
-
-        foreach ($reflectionClass->getProperties() as $property) {
-            foreach ($allClasses as $allClass) {
-                foreach ($property->getAttributes($allClass) as $attribute) {
-                    if ($fieldName == $property->getName()) {
-                        $reflection   = new ReflectionClass($attribute->newInstance());
-                        $attributes[] = [
-                            'name'       => $allClass,
-                            'nameFaker'  => $this->getNameForFaker($reflection->getShortName()),
-                            'parameters' => $this->getPropertyAttributeParameter($entityClass, $property->getName(), $reflection->getName())
-                        ];
-                    }
-                }
-            }
-        }
-
-        return $attributes;
-    }
-
-    #[Throws(ReflectionException::class)]
-    public function getClassesInDirectory(string $directory): array
+    public function getNameFaker(string $name, string $type): false|string
     {
         $finder = new Finder();
-        $finder->files()->in($directory)->name('*.php');
+        $finder->files()
+            ->in(__DIR__ . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . $type)
+            ->name('Faker' . ucfirst($name) . '.php');
 
-        $classes = [];
+        $name = '';
+
         foreach ($finder as $file) {
-            $filePath = $file->getRealPath();
-            require_once $filePath;
-            foreach (get_declared_classes() as $class) {
-                $reflection = new ReflectionClass($class);
-
-                if ($reflection->getFileName() === $filePath) {
-                    $classes[] = $class;
-                }
-            }
+            $name = $file->getRealPath();
         }
 
-        return $classes;
+        return $name;
     }
 
-    public function getNameForFaker($fakerAttributeName): string
+    public function getOrder(ReflectionClass $reflectionClass): mixed
     {
-        return lcfirst(substr($fakerAttributeName, 5));
-    }
+        $yamlFile = $this->getYamlFile($reflectionClass);
 
-    #[Throws(ReflectionException::class)]
-    public function getPropertyAttributeParameter(string $className, string $propertyName, string $attributeName): ?array
-    {
-        $reflectionProperty = new ReflectionProperty($className, $propertyName);
-        $attributes         = $reflectionProperty->getAttributes($attributeName);
+        $data = Yaml::parseFile($yamlFile['newFilePath'], flags: Yaml::PARSE_DATETIME);
 
-        return $attributes[0]->getArguments() ?? null;
+        return $data['order'] ?? null;
     }
 
     public function getRandomFaker(string $columnType, ?int $length = null, ?int $precision = null)
@@ -171,33 +113,13 @@ readonly class FixtureHelper
                 }
             case 'string':
                 if ($length) {
-                    if ($length < 5) {
-                        $return = '';
-                        
-                        for ($i = 1; $i <= $length; $i++) {
-                            $return .= $faker->randomLetter();
-                        }
-                        
-                        return $return;
-                    } else {
-                        return $faker->text($length);
-                    }
+                    return $faker->text($length);
                 } else {
                     return $faker->word();
                 }
             case 'text':
                 if ($length) {
-                    if ($length < 5) {
-                        $return = '';
-                        
-                        for ($i = 1; $i <= $length; $i++) {
-                            $return .= $faker->randomLetter();
-                        }
-                        
-                        return $return;
-                    } else {
-                        return $faker->text($length);
-                    }
+                    return $faker->text($length);
                 } else {
                     return $faker->text();
                 }
@@ -235,105 +157,178 @@ readonly class FixtureHelper
         }
     }
 
+    public function getRecords(ReflectionClass $reflectionClass): mixed
+    {
+        $yamlFile = $this->getYamlFile($reflectionClass);
+
+        $data = Yaml::parseFile($yamlFile['newFilePath'], flags: Yaml::PARSE_DATETIME);
+
+        return $data['records'] ?? 0;
+    }
+
     public function getTotalNumberOfEntity(array $entities, string $entityName): ?int
     {
-        $number = null;
+        $records = null;
 
         foreach ($entities as $entity) {
             if ($entity['name'] === $entityName) {
-                $number = $entity['number'];
+                $records = $entity['records'];
             }
         }
 
-        return $number;
+        return $records;
     }
 
     public function getTypeAssociation(int $association): string
     {
         return match ($association) {
-            ClassMetadata::ONE_TO_ONE   => 'OneToOne',
-            ClassMetadata::MANY_TO_ONE  => 'ManyToOne',
-            ClassMetadata::ONE_TO_MANY  => 'OneToMany',
-            ClassMetadata::MANY_TO_MANY => 'ManyToMany',
+            ClassMetadataInfo::ONE_TO_ONE   => 'OneToOne',
+            ClassMetadataInfo::MANY_TO_ONE  => 'ManyToOne',
+            ClassMetadataInfo::ONE_TO_MANY  => 'OneToMany',
+            ClassMetadataInfo::MANY_TO_MANY => 'ManyToMany',
             default => '',
         };
     }
 
-    #[Throws(MappingException::class)]
-    public function isAssociationNullableAnnotation(string $entityClass, string $associationName): ?bool
+    public function getYamlFile(ReflectionClass $reflectionClass): array
     {
-        $metadata = $this->entityManager->getClassMetadata($entityClass);
+        $originalFilePath = $reflectionClass->getFileName();
 
-        if (!$metadata->hasAssociation($associationName)) {
-            throw new InvalidArgumentException("L'association '$associationName' n'existe pas dans la classe '$entityClass'.");
-        }
+        // Récupération du chemin sans extension
+        $filePathWithoutExt = pathinfo($originalFilePath, PATHINFO_DIRNAME) . DIRECTORY_SEPARATOR . pathinfo($originalFilePath, PATHINFO_FILENAME);
 
-        $associationMapping = $metadata->getAssociationMapping($associationName);
+        // Nouvelle extension à tester, par exemple ".txt"
+        $newExtension = '.yaml';
 
-        if ($annotations = $this->getAnnotationsForEntity($entityClass, $associationName)) {
-            foreach ($annotations as $annotation) {
-                if (isset($annotation['nameFaker']) && $annotation['nameFaker'] == 'nullable') {
-                    return $annotation['parameters']['nullable'] ?? null;
-                }
-            }
-        }
+        // Nouveau chemin avec la nouvelle extension
+        $newFilePath = $filePathWithoutExt . $newExtension;
 
-        if (isset($associationMapping['joinColumns'])) {
-            foreach ($associationMapping['joinColumns'] as $joinColumn) {
-                return $joinColumn['nullable'] ?? null;
-            }
-        }
-
-        return null;
+        return ['fileExists' => file_exists($newFilePath), 'newFilePath' => $newFilePath];
     }
 
-    #[Throws(MappingException::class)]
-    public function isAssociationNullableAttribute(string $entityClass, string $associationName): ?bool
+    function hasOrmAnnotations(ReflectionClass $reflectionClass): bool
     {
-        $metadata = $this->entityManager->getClassMetadata($entityClass);
+        $hasOrmTag = function (?string $doc): bool {
+            if (!$doc) return false;
+            // Recherche rapide de tokens classiques Doctrine
+            // @ORM\Entity, @ORM\Column, @Entity, @Column, etc.
+            return (bool) preg_match('/@(?:ORM\\\\)?(Entity|Table|Column|Id|GeneratedValue|OneToOne|OneToMany|ManyToOne|ManyToMany)\b/', $doc);
+        };
 
-        if (!$metadata->hasAssociation($associationName)) {
-            throw new InvalidArgumentException("L'association '$associationName' n'existe pas dans la classe '$entityClass'.");
+        if ($hasOrmTag($reflectionClass->getDocComment())) {
+            return true;
         }
 
-        $associationMapping = $metadata->getAssociationMapping($associationName);
+        foreach ($reflectionClass->getProperties(ReflectionProperty::IS_PUBLIC | ReflectionProperty::IS_PROTECTED | ReflectionProperty::IS_PRIVATE) as $prop) {
+            if ($hasOrmTag($prop->getDocComment())) {
+                return true;
+            }
+        }
 
-        if ($attributes = $this->getAttributesForEntity($entityClass, $associationName)) {
+        foreach ($reflectionClass->getMethods(ReflectionMethod::IS_PUBLIC | ReflectionMethod::IS_PROTECTED | ReflectionMethod::IS_PRIVATE) as $method) {
+            if ($hasOrmTag($method->getDocComment())) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    function hasOrmAttributes(ReflectionClass $reflectionClass): bool
+    {
+        $checkAttributes = function (array $attributes): bool {
             foreach ($attributes as $attribute) {
-                if (isset($attribute['nameFaker']) && $attribute['nameFaker'] == 'nullable') {
-                    return $attribute['parameters']['nullable'] ?? null;
+                if ($attribute instanceof ReflectionAttribute) {
+                    $name = ltrim($attribute->getName(), '\\');
+                    if (str_starts_with($name, 'Doctrine\\ORM\\Mapping\\')) {
+                        return true;
+                    }
+                    // Cas d’alias importé: use Doctrine\ORM\Mapping as ORM;
+                    if (preg_match('#(^|\\\\)ORM($|\\\\)#', $name)) {
+                        return true;
+                    }
+                }
+            }
+
+            return false;
+        };
+
+        if ($checkAttributes($reflectionClass->getAttributes())) {
+            return true;
+        }
+
+        foreach ($reflectionClass->getProperties(ReflectionProperty::IS_PUBLIC | ReflectionProperty::IS_PROTECTED | ReflectionProperty::IS_PRIVATE) as $prop) {
+            if ($checkAttributes($prop->getAttributes())) {
+                return true;
+            }
+        }
+
+        foreach ($reflectionClass->getMethods(ReflectionMethod::IS_PUBLIC | ReflectionMethod::IS_PROTECTED | ReflectionMethod::IS_PRIVATE) as $method) {
+            if ($checkAttributes($method->getAttributes())) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public function isAssociationNullable(ReflectionClass $reflectionClass, string $associationName, array $joinColumns): ?bool
+    {
+        if ($fields = $this->getFields($reflectionClass, $associationName)) {
+            foreach ($fields as $field) {
+                if (isset($field['nameFaker']) && $field['nameFaker'] == 'nullable') {
+                    return $field['parameters']['nullable'] ?? null;
                 }
             }
         }
 
-        if (isset($associationMapping['joinColumns'])) {
-            foreach ($associationMapping['joinColumns'] as $joinColumn) {
-                return $joinColumn['nullable'] ?? null;
-            }
+        foreach ($joinColumns as $joinColumn) {
+            return $joinColumn['nullable'] ?? null;
         }
 
         return null;
     }
 
-    #[Throws(ReflectionException::class)]
-    public function isGeneratedValueAnnotation(string $className, string $propertyName): bool
+    public function isAssociationUnique(ReflectionClass $reflectionClass, string $associationName, array $joinColumns): ?bool
     {
-        $reader             = new AnnotationReader();
-        $reflectionProperty = new ReflectionProperty($className, $propertyName);
+        if ($fields = $this->getFields($reflectionClass, $associationName)) {
+            foreach ($fields as $field) {
+                if (isset($field['nameFaker']) && $field['nameFaker'] == 'unique') {
+                    return $field['parameters']['unique'] ?? false;
+                }
+            }
+        }
 
-        $generatedValue = $reader->getPropertyAnnotation($reflectionProperty, ORM\GeneratedValue::class);
+        foreach ($joinColumns as $joinColumn) {
+            return $joinColumn['unique'] ?? false;
+        }
 
-        return $generatedValue !== null;
+        return false;
     }
 
-    #[Throws(ReflectionException::class)]
-    public function isGeneratedValueAttribute(string $className, string $propertyName): bool
+    /**
+     * @throws ReflectionException
+     */
+    public function isGeneratedValue(string $className, string $propertyName): bool
     {
-        $reflectionProperty = new ReflectionProperty($className, $propertyName);
+        $reflectionClass = new ReflectionClass($className);
 
-        $attributes = $reflectionProperty->getAttributes(ORM\GeneratedValue::class);
+        if ($this->hasOrmAnnotations($reflectionClass)) {
+            $reader             = new AnnotationReader();
+            $reflectionProperty = new ReflectionProperty($className, $propertyName);
 
-        return !empty($attributes);
+            $generatedValue = $reader->getPropertyAnnotation($reflectionProperty, ORM\GeneratedValue::class);
+
+            return $generatedValue !== null;
+        } elseif ($this->hasOrmAttributes($reflectionClass)) {
+            $reflectionProperty = new ReflectionProperty($className, $propertyName);
+
+            $attributes = $reflectionProperty->getAttributes(ORM\GeneratedValue::class);
+
+            return !empty($attributes);
+        } else {
+            return false;
+        }
     }
 
     public function loadFixturesFromCSV(OutputInterface $output, string $table, array $datas): void
