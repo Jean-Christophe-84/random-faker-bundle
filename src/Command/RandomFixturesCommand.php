@@ -36,9 +36,6 @@ class RandomFixturesCommand extends Command
     #[Override]
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        // Not log SQL
-        $this->entityManager->getConnection()->getConfiguration()->setMiddlewares([]);
-
         $faker         = Factory::create('fr_FR');
         $entities      = [];
         $uniqueColumns = [];
@@ -217,8 +214,12 @@ class RandomFixturesCommand extends Command
     {
         if ($column['nullable'] && mt_rand(0, 1)) {
             $data = null;
-        } else if (!empty($field) && !empty($parameters)) {
-            $data = $faker->{'' . $field['nameFaker']}(...$parameters);
+        } else if (!empty($field)) {
+            if (empty($parameters)) {
+                $data = $faker->{'' . $field['nameFaker']}();
+            } else {
+                $data = $faker->{'' . $field['nameFaker']}(...$parameters);
+            }
         } else {
             $data = $this->fixtureHelper->getRandomFaker($column['type'], $column['length'], $column['precision']);
         }
